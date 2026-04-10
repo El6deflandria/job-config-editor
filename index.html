@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Config Editor — Ramiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --border-focus: #4f46e5;
+    --accent: #6366f1;
+    --accent-dim: rgba(99,102,241,0.12);
+    --accent-hover: #818cf8;
+    --text: #e4e4e7;
+    --muted: #71717a;
+    --muted2: #3f3f46;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px; min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .main { flex: 1; overflow-x: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .sidebar-logo h2 { font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: .04em; }
+  .sidebar-logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all .15s;
+    border-left: 2px solid transparent;
+    position: relative;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+  .nav-item .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted2); flex-shrink: 0; transition: background .2s;
+  }
+  .nav-item.done .dot { background: var(--success); }
+  .nav-item.active .dot { background: var(--accent); }
+  .nav-progress {
+    margin-top: auto; padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .nav-progress-label { font-size: 11px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .progress-bar-wrap { background: var(--border); border-radius: 99px; height: 4px; }
+  .progress-bar-fill {
+    height: 4px; border-radius: 99px;
+    background: var(--accent);
+    transition: width .4s ease;
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(13,13,13,.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .topbar-title { font-size: 13px; color: var(--muted); }
+  .topbar-title span { color: var(--text); font-weight: 500; }
+  .save-status {
+    margin-left: auto; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .save-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    border: none; transition: all .15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted2); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+  .btn-danger:hover { background: rgba(239,68,68,.1); }
+
+  /* ── Content ── */
+  .content { padding: 40px 48px 80px; max-width: 820px; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .section-header { margin-bottom: 32px; }
+  .section-tag {
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .section-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .section-header p { color: var(--muted); font-size: 13.5px; line-height: 1.7; }
+
+  /* ── Form blocks ── */
+  .field-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .field-group-title {
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: 20px;
+  }
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block; font-size: 13px; font-weight: 500;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .field .hint { font-size: 11.5px; color: var(--muted); margin-bottom: 6px; display: block; margin-top: -3px; }
+  .field input, .field textarea, .field select {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text); font-family: inherit; font-size: 13.5px;
+    padding: 9px 12px; outline: none;
+    transition: border-color .15s;
+    resize: vertical;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+  }
+  .field select { appearance: none; cursor: pointer; }
+  .field textarea { min-height: 90px; line-height: 1.6; }
+
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* ── Chip input ── */
+  .chip-wrap {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px;
+    min-height: 48px; display: flex; flex-wrap: wrap; gap: 6px;
+    transition: border-color .15s;
+  }
+  .chip-wrap:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--border); color: var(--text);
+    border-radius: 99px; padding: 3px 10px 3px 10px;
+    font-size: 12px; font-weight: 500;
+    animation: chipIn .15s ease;
+  }
+  @keyframes chipIn { from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)} }
+  .chip.red { background: rgba(239,68,68,.15); color: #fca5a5; }
+  .chip.green { background: rgba(34,197,94,.15); color: #86efac; }
+  .chip.yellow { background: rgba(245,158,11,.15); color: #fcd34d; }
+  .chip-del {
+    cursor: pointer; color: var(--muted); font-size: 14px;
+    line-height: 1; padding: 0 1px;
+    transition: color .1s;
+  }
+  .chip-del:hover { color: var(--danger); }
+  .chip-input {
+    border: none; background: transparent; outline: none;
+    color: var(--text); font-family: inherit; font-size: 13px;
+    min-width: 120px; flex: 1; padding: 2px 4px;
+  }
+  .chip-label { font-size: 11.5px; color: var(--muted); margin-bottom: 5px; display: block; }
+
+  /* ── Range slider ── */
+  .range-row { display: flex; align-items: center; gap: 12px; }
+  .range-row input[type=range] {
+    flex: 1; accent-color: var(--accent);
+    background: transparent; border: none; box-shadow: none; padding: 0;
+  }
+  .range-val {
+    font-family: var(--mono); font-size: 13px;
+    color: var(--accent); min-width: 48px; text-align: right;
+  }
+
+  /* ── Tier grid ── */
+  .tier-grid { display: grid; gap: 14px; }
+  .tier-card {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 14px 16px;
+  }
+  .tier-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .tier-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 99px; letter-spacing: .04em;
+  }
+  .tier-a .tier-badge { background: rgba(34,197,94,.15); color: #86efac; }
+  .tier-b .tier-badge { background: rgba(99,102,241,.15); color: #a5b4fc; }
+  .tier-c .tier-badge { background: rgba(245,158,11,.15); color: #fcd34d; }
+  .tier-d .tier-badge { background: rgba(239,68,68,.15); color: #fca5a5; }
+  .tier-card-header span { font-size: 12px; color: var(--muted); }
+
+  /* ── Story Bank ── */
+  .story-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .story-card:hover { border-color: var(--muted2); }
+  .story-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .story-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent-dim); color: var(--accent);
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .story-title-text { font-size: 13.5px; font-weight: 500; flex: 1; }
+  .story-wc { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .story-del { color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+  .story-del:hover { color: var(--danger); }
+  .story-body { padding: 18px; }
+  .word-counter { font-size: 11px; color: var(--muted); text-align: right; margin-top: 5px; }
+  .word-counter.ok { color: var(--success); }
+  .word-counter.over { color: var(--danger); }
+
+  .add-story-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px dashed var(--border); border-radius: var(--radius);
+    padding: 16px; cursor: pointer; color: var(--muted); font-size: 13px;
+    transition: all .15s; width: 100%;
+    background: transparent;
+  }
+  .add-story-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  /* ── Export ── */
+  .export-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
+  .export-preview {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    max-height: 280px; overflow-y: auto;
+    white-space: pre-wrap; margin-top: 12px;
+    line-height: 1.7;
+  }
+
+  /* ── Mobile ── */
+  .mobile-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 0 env(safe-area-inset-bottom, 8px);
+    z-index: 100;
+    overflow-x: auto;
+  }
+  .mobile-nav-inner { display: flex; min-width: max-content; padding: 0 8px; gap: 4px; }
+  .mobile-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 14px; border-radius: var(--radius-sm);
+    cursor: pointer; font-size: 10px; color: var(--muted);
+    transition: all .15s; white-space: nowrap;
+  }
+  .mobile-nav-item.active { color: var(--accent); background: var(--accent-dim); }
+  .mobile-nav-icon { font-size: 16px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .mobile-nav { display: block; }
+    .content { padding: 24px 18px 100px; }
+    .row-2, .row-3 { grid-template-columns: 1fr; }
+    .topbar { padding: 10px 18px; }
+    .topbar-title { display: none; }
+    .section-header h1 { font-size: 18px; }
+  }
+
+  /* ── Misc ── */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+  .info-box {
+    background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-size: 12.5px; color: #a5b4fc; margin-bottom: 18px;
+    line-height: 1.6;
+  }
+  .info-box strong { color: var(--accent-hover); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h2>⚡ JOB CONFIG</h2>
+      <p>Scoring &amp; Application Setup</p>
+    </div>
+    <nav id="sidebar-nav">
+      <div class="nav-item active" data-section="identity" onclick="gotoSection('identity')">
+        <span class="dot"></span> Identity &amp; Skills
+      </div>
+      <div class="nav-item" data-section="constraints" onclick="gotoSection('constraints')">
+        <span class="dot"></span> Constraints &amp; Salary
+      </div>
+      <div class="nav-item" data-section="scoring" onclick="gotoSection('scoring')">
+        <span class="dot"></span> Scoring Keywords
+      </div>
+      <div class="nav-item" data-section="sectors" onclick="gotoSection('sectors')">
+        <span class="dot"></span> Sectors &amp; Culture
+      </div>
+      <div class="nav-item" data-section="growth" onclick="gotoSection('growth')">
+        <span class="dot"></span> Growth &amp; Location
+      </div>
+      <div class="nav-item" data-section="stories" onclick="gotoSection('stories')">
+        <span class="dot"></span> Story Bank
+      </div>
+      <div class="nav-item" data-section="voice" onclick="gotoSection('voice')">
+        <span class="dot"></span> Cover Letter Voice
+      </div>
+      <div class="nav-item" data-section="export" onclick="gotoSection('export')">
+        <span class="dot"></span> Export
+      </div>
+    </nav>
+    <div class="nav-progress">
+      <div class="nav-progress-label">
+        <span>Overall progress</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="global-bar" style="width:0%"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="topbar-title">Job Config Editor &nbsp;/&nbsp; <span id="topbar-section">Identity &amp; Skills</span></div>
+      <div class="save-status">
+        <span class="save-dot"></span>
+        <span id="save-label">Saved locally</span>
+      </div>
+      <button class="btn btn-primary" onclick="gotoExport()">↓ Export</button>
+    </div>
+
+    <!-- Sections -->
+    <div class="content">
+
+      <!-- ── 1. IDENTITY ── -->
+      <div class="section active" id="section-identity">
+        <div class="section-header">
+          <div class="section-tag">Part 1 — Profile</div>
+          <h1>Identity &amp; Skills</h1>
+          <p>Basic facts about you that every AI node will read as context. Be precise — vague inputs produce vague scoring.</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Core Identity</div>
+          <div class="row-2">
+            <div class="field">
+              <label>Full Name</label>
+              <input type="text" id="name" placeholder="Ramiro Alvariño" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Current Location</label>
+              <input type="text" id="location" placeholder="Paris, France" oninput="save()">
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Work Authorization</label>
+              <input type="text" id="work_auth" placeholder="EU citizen / Spanish passport" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Primary Target Market</label>
+              <input type="text" id="target_market" placeholder="France" oninput="save()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Languages (include level)</label>
+            <input type="text" id="languages" placeholder="Spanish (native), English (C1), French (B2)" oninput="save()">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Core Disciplines</div>
+          <span class="chip-label">What you do — type and press Enter</span>
+          <div class="chip-wrap" id="disciplines-wrap">
+            <input class="chip-input" placeholder="e.g. Industrial Design" onkeydown="addChip(event,'disciplines')">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Tools &amp; Software</div>
+          <div class="info-box">Rate yourself for each tool. Format: <strong>Tool Name: Level</strong> (Beginner / Intermediate / Expert)</div>
+          <div id="tools-list"></div>
+          <button class="add-story-btn" onclick="addTool()" style="margin-top:10px">+ Add tool</button>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Domain Knowledge</div>
+          <span class="chip-label">Industries where you have real context — type and press Enter</span>
+          <div class="chip-wrap" id="domains-wrap">
+            <input class="chip-input" placeholder="e.g. Consumer Electronics" onkeydown="addChip(event,'domains')">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">What You've Shipped</div>
+          <span class="hint" style="display:block;margin-bottom:10px;color:var(--muted);font-size:12px">One bullet per line. Be specific: what, with whom, result.</span>
+          <div class="field">
+            <textarea id="shipped" placeholder="- Led product design of X from 0 to market launch&#10;- Co-founded startup, grew to €Xk revenue&#10;- Designed Y for client Z (won award / sold X units)" oninput="save()"></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" onclick="gotoSection('constraints')">Next → Constraints &amp; Salary</button>
+        </div>
+      </div>
+
+      <!-- ── 2. CONSTRAINTS ── -->
+      <div class="section" id="section-constraints">
+        <div class="section-header">
+          <div class="section-tag">Part 1 — Constraints</div>
+          <h1>Constraints &amp; Salary</h1>
+          <p>Hard limits — if any of these are true, the job gets scored below 30 automatically.</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Hard Deal-Breakers</div>
+          <div class="field">
+            <label>Locations I refuse (cities or countries)</label>
+            <span class="hint">Leave blank if none</span>
+            <input type="text" id="refuse_locations" placeholder="e.g. Outside EU, rural areas" oninput="save()">
+          </div>
+          <div class="field">
+            <label>Industries I refuse to work in</label>
+            <span class="hint">Absolute ethical or personal limits</span>
+            <input type="text" id="refuse_industries" placeholder="e.g. Weapons, Tobacco, MLM" oninput="save()">
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Refuse 100% on-site?</label>
+              <select id="refuse_onsite" onchange="save()">
+                <option value="">— choose —</option>
+                <option value="yes">Yes — need remote flexibility</option>
+                <option value="no">No — fine with full on-site</option>
+                <option value="depends">Depends on role/company</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Refuse unpaid / commission-only?</label>
+              <select id="refuse_unpaid" onchange="save()">
+                <option value="">— choose —</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Maximum years of experience they can require</label>
+            <span class="hint">If a job requires more than this, flag as hard fail</span>
+            <div class="range-row">
+              <input type="range" min="2" max="15" value="7" id="max_yoe" oninput="document.getElementById('max_yoe_val').textContent=this.value+'+ yrs → fail';save()">
+              <span class="range-val" id="max_yoe_val">7+ yrs → fail</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Other deal-breakers</label>
+            <textarea id="other_dealbreakers" placeholder="Any other absolute limits not covered above..." oninput="save()" style="min-height:70px"></textarea>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Salary Floor &amp; Range</div>
+          <div class="info-box">If a disclosed salary is below your floor, the job gets flagged HARD_FAIL. If salary is not disclosed, it scores neutral (no penalty).</div>
+          <div class="row-3">
+            <div class="field">
+              <label>France — Floor (€k gross/yr)</label>
+              <input type="number" id="salary_fr_floor" placeholder="e.g. 38" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Spain — Floor (€k gross/yr)</label>
+              <input type="number" id="salary_es_floor" placeholder="e.g. 30" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Remote EU — Floor (€k gross/yr)</label>
+              <input type="number" id="salary_remote_floor" placeholder="e.g. 35" oninput="save()">
+            </div>
+          </div>
+          <div class="row-2" style="margin-top:4px">
+            <div class="field">
+              <label>Preferred min (€k gross/yr)</label>
+              <input type="number" id="salary_pref_min" placeholder="e.g. 42" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Preferred max / bonus above (€k gross/yr)</label>
+              <input type="number" id="salary_pref_max" placeholder="e.g. 55" oninput="save()">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button class="btn btn-ghost" onclick="gotoSection('identity')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('scoring')">Next → Scoring Keywords</button>
+        </div>
+      </div>
+
+      <!-- ── 3. SCORING KEYWORDS ── -->
+      <div class="section" id="section-scoring">
+        <div class="section-header">
+          <div class="section-tag">Part 2 — Scoring Matrix</div>
+          <h1>Role &amp; Skills Scoring</h1>
+          <p>Keywords that swing the job score up or down. Think of terms that appear in job descriptions that signal a great vs. terrible role match.</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Power Keywords — Boosters <span style="color:var(--success)">(+2 pts each)</span></div>
+          <div class="info-box">Words in a job description that make you lean forward. Max 6 active at a time for scoring precision.</div>
+          <span class="chip-label">Type a keyword and press Enter</span>
+          <div class="chip-wrap" id="kw-boost-wrap">
+            <input class="chip-input" placeholder="e.g. product design, 0 to 1, innovation" onkeydown="addChip(event,'kw-boost','green')">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Penalty Keywords — Red Flags <span style="color:var(--danger)">(-3 pts each)</span></div>
+          <div class="info-box">Words that appear in "bad" job descriptions — roles you'd hate even if the skills technically match.</div>
+          <span class="chip-label">Type a keyword and press Enter</span>
+          <div class="chip-wrap" id="kw-penalty-wrap">
+            <input class="chip-input" placeholder="e.g. CAD monkey, purely execution, no design input" onkeydown="addChip(event,'kw-penalty','red')">
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button class="btn btn-ghost" onclick="gotoSection('constraints')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('sectors')">Next → Sectors &amp; Culture</button>
+        </div>
+      </div>
+
+      <!-- ── 4. SECTORS ── -->
+      <div class="section" id="section-sectors">
+        <div class="section-header">
+          <div class="section-tag">Part 2 — Scoring Matrix</div>
+          <h1>Sectors &amp; Culture</h1>
+          <p>This is where your taste lives. Define which industries energize you vs. ones you'd tolerate, and what company culture signals matter.</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Sector Tiers</div>
+          <div class="tier-grid">
+            <div class="tier-card tier-a">
+              <div class="tier-card-header">
+                <span class="tier-badge">TIER A</span>
+                <span>17–20 pts — Industries I'm most energized by</span>
+              </div>
+              <div class="chip-wrap" id="sector-a-wrap">
+                <input class="chip-input" placeholder="e.g. Cleantech, Hardware Startups, Design Studios" onkeydown="addChip(event,'sector-a','green')">
+              </div>
+            </div>
+            <div class="tier-card tier-b">
+              <div class="tier-card-header">
+                <span class="tier-badge">TIER B</span>
+                <span>11–16 pts — Interesting, could do well in</span>
+              </div>
+              <div class="chip-wrap" id="sector-b-wrap">
+                <input class="chip-input" placeholder="e.g. B2B Product, Healthcare Devices, Architecture" onkeydown="addChip(event,'sector-b')">
+              </div>
+            </div>
+            <div class="tier-card tier-c">
+              <div class="tier-card-header">
+                <span class="tier-badge">TIER C</span>
+                <span>5–10 pts — Neutral, right comp could work</span>
+              </div>
+              <div class="chip-wrap" id="sector-c-wrap">
+                <input class="chip-input" placeholder="e.g. Consulting, Large Corporates" onkeydown="addChip(event,'sector-c','yellow')">
+              </div>
+            </div>
+            <div class="tier-card tier-d">
+              <div class="tier-card-header">
+                <span class="tier-badge">TIER D</span>
+                <span>0–4 pts — Dislike (but not a hard block)</span>
+              </div>
+              <div class="chip-wrap" id="sector-d-wrap">
+                <input class="chip-input" placeholder="e.g. FMCG Packaging, Retail fashion" onkeydown="addChip(event,'sector-d','red')">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Culture Signals</div>
+          <div class="row-2">
+            <div>
+              <span class="chip-label" style="color:var(--success)">Culture Boosters (+2 pts each)</span>
+              <div class="chip-wrap" id="culture-boost-wrap">
+                <input class="chip-input" placeholder="e.g. flat structure, startup" onkeydown="addChip(event,'culture-boost','green')">
+              </div>
+            </div>
+            <div>
+              <span class="chip-label" style="color:var(--danger)">Culture Penalties (-2 pts each)</span>
+              <div class="chip-wrap" id="culture-penalty-wrap">
+                <input class="chip-input" placeholder="e.g. matrix organization, corporate" onkeydown="addChip(event,'culture-penalty','red')">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button class="btn btn-ghost" onclick="gotoSection('scoring')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('growth')">Next → Growth &amp; Location</button>
+        </div>
+      </div>
+
+      <!-- ── 5. GROWTH & LOCATION ── -->
+      <div class="section" id="section-growth">
+        <div class="section-header">
+          <div class="section-tag">Part 2 — Scoring Matrix</div>
+          <h1>Growth &amp; Location</h1>
+          <p>Define your career direction and location preferences. The north star is what separates a good job from the right job.</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">3-Year North Star</div>
+          <div class="info-box">Write one sentence. Gemini uses this to evaluate if a role is on your critical path or a detour. Be specific — "lead design at a VC-backed hardware startup" beats "grow professionally".</div>
+          <div class="field">
+            <label>In 3 years, I want to be…</label>
+            <textarea id="north_star" placeholder="e.g. A Senior Product Design Lead at a Series B hardware startup, where I own the full design process and have a small team reporting to me." oninput="save()" style="min-height:80px"></textarea>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Growth Signals</div>
+          <div class="row-2">
+            <div>
+              <span class="chip-label" style="color:var(--success)">Growth Boosters (+2 pts each)</span>
+              <div class="chip-wrap" id="growth-boost-wrap">
+                <input class="chip-input" placeholder="e.g. lead a team, work with founders" onkeydown="addChip(event,'growth-boost','green')">
+              </div>
+            </div>
+            <div>
+              <span class="chip-label" style="color:var(--danger)">Growth Penalties (-2 pts each)</span>
+              <div class="chip-wrap" id="growth-penalty-wrap">
+                <input class="chip-input" placeholder="e.g. support the team, execute briefs" onkeydown="addChip(event,'growth-penalty','red')">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Location Preferences</div>
+          <div class="row-3">
+            <div class="field">
+              <label>Primary city</label>
+              <input type="text" id="city1" placeholder="e.g. Paris" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Secondary city</label>
+              <input type="text" id="city2" placeholder="e.g. Barcelona" oninput="save()">
+            </div>
+            <div class="field">
+              <label>Tertiary city</label>
+              <input type="text" id="city3" placeholder="e.g. Berlin" oninput="save()">
+            </div>
+          </div>
+          <div class="field" style="margin-top:4px">
+            <label>Minimum remote days per week</label>
+            <div class="range-row">
+              <input type="range" min="0" max="5" value="2" id="remote_days" oninput="document.getElementById('remote_days_val').textContent=this.value+' days/week';save()">
+              <span class="range-val" id="remote_days_val">2 days/week</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button class="btn btn-ghost" onclick="gotoSection('sectors')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('stories')">Next → Story Bank</button>
+        </div>
+      </div>
+
+      <!-- ── 6. STORY BANK ── -->
+      <div class="section" id="section-stories">
+        <div class="section-header">
+          <div class="section-tag">Part 6 — Story Bank</div>
+          <h1>Story Bank</h1>
+          <p>These are the proof stories Gemini uses as Paragraph 2 in every cover letter. Write them yourself — 50–65 words, first person, specific result. AI picks the best match per job.</p>
+        </div>
+
+        <div class="info-box">
+          <strong>Formula:</strong> "At [company], I [did what] — [with whom / under what constraint]. The result was [specific, ideally measurable outcome]."<br>
+          Aim for 6–10 stories covering: product launch, entrepreneurship, cross-functional work, research, international exposure, business impact.
+        </div>
+
+        <div id="stories-container"></div>
+
+        <button class="add-story-btn" onclick="addStory()">+ Add story</button>
+
+        <div style="display:flex;justify-content:space-between;margin-top:24px">
+          <button class="btn btn-ghost" onclick="gotoSection('growth')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('voice')">Next → Cover Letter Voice</button>
+        </div>
+      </div>
+
+      <!-- ── 7. VOICE ── -->
+      <div class="section" id="section-voice">
+        <div class="section-header">
+          <div class="section-tag">Part 7 — Cover Letter</div>
+          <h1>Cover Letter Voice</h1>
+          <p>These preferences are injected into every Gemini cover letter prompt. 10 minutes here saves hours of editing later.</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Tone Settings</div>
+          <div class="row-3">
+            <div class="field">
+              <label>Formality</label>
+              <select id="cl_formality" onchange="save()">
+                <option value="">— pick one —</option>
+                <option value="casual">Casual</option>
+                <option value="professional">Professional</option>
+                <option value="formal">Formal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Energy</label>
+              <select id="cl_energy" onchange="save()">
+                <option value="">— pick one —</option>
+                <option value="enthusiastic">Enthusiastic</option>
+                <option value="measured">Measured</option>
+                <option value="confident-and-direct">Confident &amp; Direct</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Max words</label>
+              <div class="range-row">
+                <input type="range" min="150" max="400" step="10" value="280" id="cl_max_words" oninput="document.getElementById('cl_words_val').textContent=this.value;save()">
+                <span class="range-val" id="cl_words_val">280</span>
+              </div>
+            </div>
+          </div>
+          <div class="field" style="margin-top:4px">
+            <label>Writing style reference</label>
+            <span class="hint">A sentence or reference that captures your voice</span>
+            <input type="text" id="cl_style_ref" placeholder='e.g. "Direct and precise, like Paul Graham. No filler sentences."' oninput="save()">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Words to Ban</div>
+          <span class="chip-label">Clichés Gemini must never use — type and press Enter</span>
+          <div class="chip-wrap" id="banned-words-wrap">
+            <input class="chip-input" placeholder="e.g. passionate, leverage, synergy" onkeydown="addChip(event,'banned-words','red')">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Signature</div>
+          <div class="row-2">
+            <div class="field">
+              <label>English closing line</label>
+              <input type="text" id="sign_close_en" placeholder='e.g. "Happy to connect at your convenience."' oninput="save()">
+            </div>
+            <div class="field">
+              <label>French closing line</label>
+              <input type="text" id="sign_close_fr" placeholder='e.g. "Au plaisir d&apos;échanger avec vous."' oninput="save()">
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Sign-off (English)</label>
+              <input type="text" id="signoff_en" placeholder='e.g. "Best,"' oninput="save()">
+            </div>
+            <div class="field">
+              <label>Sign-off (French)</label>
+              <input type="text" id="signoff_fr" placeholder='e.g. "Cordialement,"' oninput="save()">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button class="btn btn-ghost" onclick="gotoSection('stories')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('export')">→ Export</button>
+        </div>
+      </div>
+
+      <!-- ── 8. EXPORT ── -->
+      <div class="section" id="section-export">
+        <div class="section-header">
+          <div class="section-tag">Export</div>
+          <h1>Export Config</h1>
+          <p>Download your configuration as JSON (for n8n automation) or as Markdown (to share with Antigravity to build the scoring prompt).</p>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Export Options</div>
+          <div class="export-row">
+            <button class="btn btn-primary" onclick="exportJSON()">↓ Download JSON</button>
+            <button class="btn btn-ghost" onclick="exportMarkdown()">↓ Download Markdown</button>
+            <button class="btn btn-ghost" onclick="copyJSON()">⎘ Copy JSON to clipboard</button>
+          </div>
+          <div id="export-preview-wrap" style="margin-top:16px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview (profile_data.json)</div>
+            <div class="export-preview" id="export-preview">Click "Copy JSON" or "Download JSON" to see preview...</div>
+          </div>
+        </div>
+
+        <div class="field-group" style="margin-top:20px">
+          <div class="field-group-title">Danger Zone</div>
+          <button class="btn btn-danger" onclick="clearAll()">✕ Clear all data</button>
+          <span style="font-size:12px;color:var(--muted);margin-left:12px">This will erase all fields from local storage.</span>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Mobile nav -->
+<div class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <div class="mobile-nav-item active" onclick="gotoSection('identity')"><span class="mobile-nav-icon">👤</span>Identity</div>
+    <div class="mobile-nav-item" onclick="gotoSection('constraints')"><span class="mobile-nav-icon">🚫</span>Limits</div>
+    <div class="mobile-nav-item" onclick="gotoSection('scoring')"><span class="mobile-nav-icon">🔑</span>Keywords</div>
+    <div class="mobile-nav-item" onclick="gotoSection('sectors')"><span class="mobile-nav-icon">🏢</span>Sectors</div>
+    <div class="mobile-nav-item" onclick="gotoSection('growth')"><span class="mobile-nav-icon">📍</span>Growth</div>
+    <div class="mobile-nav-item" onclick="gotoSection('stories')"><span class="mobile-nav-icon">📖</span>Stories</div>
+    <div class="mobile-nav-item" onclick="gotoSection('voice')"><span class="mobile-nav-icon">✍️</span>Voice</div>
+    <div class="mobile-nav-item" onclick="gotoSection('export')"><span class="mobile-nav-icon">↓</span>Export</div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+const SECTIONS = ['identity','constraints','scoring','sectors','growth','stories','voice','export'];
+const SECTION_LABELS = {
+  identity:'Identity & Skills', constraints:'Constraints & Salary',
+  scoring:'Scoring Keywords', sectors:'Sectors & Culture',
+  growth:'Growth & Location', stories:'Story Bank',
+  voice:'Cover Letter Voice', export:'Export'
+};
+let currentSection = 'identity';
+let stories = [];
+let tools = [];
+let chips = {};
+
+// ── Navigation ──
+function gotoSection(id) {
+  document.getElementById('section-' + currentSection).classList.remove('active');
+  document.getElementById('section-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+  const navItem = document.querySelector(`.nav-item[data-section="${id}"]`);
+  if (navItem) navItem.classList.add('active');
+  const mobItems = document.querySelectorAll('.mobile-nav-item');
+  mobItems[SECTIONS.indexOf(id)].classList.add('active');
+  document.getElementById('topbar-section').textContent = SECTION_LABELS[id];
+  currentSection = id;
+  window.scrollTo(0, 0);
+  if (id === 'export') refreshExportPreview();
+}
+function gotoExport() { gotoSection('export'); }
+
+// ── Tools ──
+function addTool(name='', level='') {
+  const idx = tools.length;
+  tools.push({ name, level });
+  const div = document.createElement('div');
+  div.className = 'row-2';
+  div.id = `tool-row-${idx}`;
+  div.style.marginBottom = '10px';
+  div.innerHTML = `
+    <div class="field" style="margin:0">
+      <input type="text" placeholder="Tool name (e.g. Fusion 360)" value="${name}"
+        oninput="tools[${idx}].name=this.value;save()">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="field" style="margin:0;flex:1">
+        <select onchange="tools[${idx}].level=this.value;save()">
+          <option value="">— Level —</option>
+          <option value="Beginner" ${level==='Beginner'?'selected':''}>Beginner</option>
+          <option value="Intermediate" ${level==='Intermediate'?'selected':''}>Intermediate</option>
+          <option value="Expert" ${level==='Expert'?'selected':''}>Expert</option>
+        </select>
+      </div>
+      <span style="cursor:pointer;color:var(--muted);font-size:18px" onclick="removeTool(${idx})">×</span>
+    </div>`;
+  document.getElementById('tools-list').appendChild(div);
+  save();
+}
+function removeTool(idx) {
+  tools.splice(idx, 1);
+  document.getElementById('tools-list').innerHTML = '';
+  const temp = [...tools]; tools = [];
+  temp.forEach(t => addTool(t.name, t.level));
+  save();
+}
+
+// ── Chip inputs ──
+function addChip(e, key, color='') {
+  if (e.key !== 'Enter' && e.key !== ',') return;
+  e.preventDefault();
+  const val = e.target.value.trim().replace(/,$/, '');
+  if (!val) return;
+  if (!chips[key]) chips[key] = [];
+  chips[key].push({ text: val, color });
+  e.target.value = '';
+  renderChips(key);
+  save();
+}
+function removeChip(key, idx) {
+  chips[key].splice(idx, 1);
+  renderChips(key);
+  save();
+}
+function renderChips(key) {
+  const wrap = document.getElementById(key + '-wrap');
+  if (!wrap) return;
+  const input = wrap.querySelector('.chip-input');
+  wrap.querySelectorAll('.chip').forEach(c => c.remove());
+  (chips[key] || []).forEach((c, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (c.color ? ' ' + c.color : '');
+    chip.innerHTML = `${c.text}<span class="chip-del" onclick="removeChip('${key}',${i})">×</span>`;
+    wrap.insertBefore(chip, input);
+  });
+}
+
+// ── Story Bank ──
+function addStory(data={}) {
+  const idx = stories.length;
+  stories.push({
+    title: data.title || '',
+    text: data.text || '',
+    skill_tags: data.skill_tags || [],
+    sector_tags: data.sector_tags || []
+  });
+  renderStory(idx);
+  save();
+}
+function renderStory(idx) {
+  const s = stories[idx];
+  const container = document.getElementById('stories-container');
+  let card = document.getElementById(`story-card-${idx}`);
+  if (!card) {
+    card = document.createElement('div');
+    card.className = 'story-card';
+    card.id = `story-card-${idx}`;
+    container.appendChild(card);
+  }
+  const wc = s.text.trim().split(/\s+/).filter(Boolean).length;
+  const wcClass = wc === 0 ? '' : wc >= 50 && wc <= 65 ? ' ok' : ' over';
+  const wcLabel = wc === 0 ? '0 words' : wc >= 50 && wc <= 65 ? `${wc} words ✓` : `${wc} words (target: 50–65)`;
+  card.innerHTML = `
+    <div class="story-header">
+      <span class="story-num">${idx + 1}</span>
+      <span class="story-title-text">${s.title || 'Untitled story'}</span>
+      <span class="story-wc">${wc} words</span>
+      <span class="story-del" onclick="removeStory(${idx})">×</span>
+    </div>
+    <div class="story-body">
+      <div class="field">
+        <label>Title / Short label</label>
+        <input type="text" value="${s.title}" placeholder='e.g. "Product Design 0 to 1"'
+          oninput="stories[${idx}].title=this.value;updateStoryHeader(${idx});save()">
+      </div>
+      <div class="field">
+        <label>Story text (50–65 words)</label>
+        <textarea placeholder="At [Company], I led the design of [Product] from initial brief to factory handoff. Working cross-functionally with engineering, we shipped on schedule — the product went on to [specific result]."
+          oninput="stories[${idx}].text=this.value;updateStoryWC(${idx},this);save()"
+          style="min-height:110px">${s.text}</textarea>
+        <div class="word-counter${wcClass}" id="wc-${idx}">${wcLabel}</div>
+      </div>
+      <div class="row-2">
+        <div>
+          <span class="chip-label">Skill tags (for matching)</span>
+          <div class="chip-wrap" id="story-skills-${idx}-wrap">
+            <input class="chip-input" placeholder="e.g. product_design, 0_to_1"
+              onkeydown="addStoryChip(event,${idx},'skill_tags')">
+          </div>
+        </div>
+        <div>
+          <span class="chip-label">Sector tags</span>
+          <div class="chip-wrap" id="story-sectors-${idx}-wrap">
+            <input class="chip-input" placeholder="e.g. startup, hardware"
+              onkeydown="addStoryChip(event,${idx},'sector_tags')">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  renderStoryChips(idx, 'skill_tags');
+  renderStoryChips(idx, 'sector_tags');
+}
+function updateStoryHeader(idx) {
+  const card = document.getElementById(`story-card-${idx}`);
+  if (card) card.querySelector('.story-title-text').textContent = stories[idx].title || 'Untitled story';
+}
+function updateStoryWC(idx, ta) {
+  const wc = ta.value.trim().split(/\s+/).filter(Boolean).length;
+  const el = document.getElementById(`wc-${idx}`);
+  if (!el) return;
+  el.className = 'word-counter' + (wc === 0 ? '' : wc >= 50 && wc <= 65 ? ' ok' : ' over');
+  el.textContent = wc === 0 ? '0 words' : wc >= 50 && wc <= 65 ? `${wc} words ✓` : `${wc} words (target: 50–65)`;
+  const card = document.getElementById(`story-card-${idx}`);
+  if (card) card.querySelector('.story-wc').textContent = wc + ' words';
+}
+function removeStory(idx) {
+  stories.splice(idx, 1);
+  document.getElementById('stories-container').innerHTML = '';
+  const temp = [...stories]; stories = [];
+  temp.forEach(s => addStory(s));
+  save();
+}
+function addStoryChip(e, idx, field) {
+  if (e.key !== 'Enter' && e.key !== ',') return;
+  e.preventDefault();
+  const val = e.target.value.trim().replace(/,$/, '');
+  if (!val) return;
+  if (!stories[idx][field]) stories[idx][field] = [];
+  stories[idx][field].push(val);
+  e.target.value = '';
+  renderStoryChips(idx, field);
+  save();
+}
+function renderStoryChips(idx, field) {
+  const key = field === 'skill_tags' ? `story-skills-${idx}` : `story-sectors-${idx}`;
+  const wrap = document.getElementById(key + '-wrap');
+  if (!wrap) return;
+  const input = wrap.querySelector('.chip-input');
+  wrap.querySelectorAll('.chip').forEach(c => c.remove());
+  (stories[idx][field] || []).forEach((t, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${t}<span class="chip-del" onclick="removeStoryChip(${idx},'${field}',${i})">×</span>`;
+    wrap.insertBefore(chip, input);
+  });
+}
+function removeStoryChip(idx, field, i) {
+  stories[idx][field].splice(i, 1);
+  renderStoryChips(idx, field);
+  save();
+}
+
+// ── Progress ──
+function updateProgress() {
+  const fields = ['name','location','work_auth','target_market','languages',
+    'north_star','city1','salary_fr_floor','cl_formality','cl_energy'];
+  const chipKeys = ['disciplines','kw-boost','kw-penalty','sector-a','sector-b','culture-boost','banned-words'];
+  let filled = 0, total = fields.length + chipKeys.length + 2;
+  fields.forEach(f => { const el = document.getElementById(f); if(el && el.value.trim()) filled++; });
+  chipKeys.forEach(k => { if((chips[k]||[]).length > 0) filled++; });
+  if (stories.length > 0) filled++;
+  if (tools.length > 0) filled++;
+  const pct = Math.round(filled / total * 100);
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('global-bar').style.width = pct + '%';
+  return pct;
+}
+
+// ── LocalStorage Save/Load ──
+function save() {
+  const data = getData();
+  localStorage.setItem('jobconfig_v2', JSON.stringify(data));
+  document.getElementById('save-label').textContent = 'Saved ' + new Date().toLocaleTimeString();
+  updateProgress();
+}
+function getData() {
+  const fv = id => (document.getElementById(id)||{}).value || '';
+  return {
+    profile: {
+      name: fv('name'), location: fv('location'), work_auth: fv('work_auth'),
+      target_market: fv('target_market'), languages: fv('languages'),
+      disciplines: chips['disciplines'] || [],
+      tools: tools,
+      domains: chips['domains'] || [],
+      shipped: fv('shipped')
+    },
+    constraints: {
+      refuse_locations: fv('refuse_locations'),
+      refuse_industries: fv('refuse_industries'),
+      refuse_onsite: fv('refuse_onsite'),
+      refuse_unpaid: fv('refuse_unpaid'),
+      max_yoe: fv('max_yoe'),
+      other: fv('other_dealbreakers'),
+      salary: {
+        france_floor: fv('salary_fr_floor'),
+        spain_floor: fv('salary_es_floor'),
+        remote_floor: fv('salary_remote_floor'),
+        preferred_min: fv('salary_pref_min'),
+        preferred_max: fv('salary_pref_max')
+      }
+    },
+    scoring: {
+      kw_boosters: (chips['kw-boost']||[]).map(c=>c.text),
+      kw_penalties: (chips['kw-penalty']||[]).map(c=>c.text),
+      sector_a: (chips['sector-a']||[]).map(c=>c.text),
+      sector_b: (chips['sector-b']||[]).map(c=>c.text),
+      sector_c: (chips['sector-c']||[]).map(c=>c.text),
+      sector_d: (chips['sector-d']||[]).map(c=>c.text),
+      culture_boosters: (chips['culture-boost']||[]).map(c=>c.text),
+      culture_penalties: (chips['culture-penalty']||[]).map(c=>c.text),
+      growth_boosters: (chips['growth-boost']||[]).map(c=>c.text),
+      growth_penalties: (chips['growth-penalty']||[]).map(c=>c.text)
+    },
+    career: {
+      north_star: fv('north_star'),
+      preferred_cities: [fv('city1'),fv('city2'),fv('city3')].filter(Boolean),
+      min_remote_days: fv('remote_days')
+    },
+    story_bank: stories,
+    cover_letter: {
+      formality: fv('cl_formality'),
+      energy: fv('cl_energy'),
+      max_words: parseInt(fv('cl_max_words')) || 280,
+      style_reference: fv('cl_style_ref'),
+      banned_words: (chips['banned-words']||[]).map(c=>c.text),
+      signature: {
+        closing_en: fv('sign_close_en'),
+        closing_fr: fv('sign_close_fr'),
+        signoff_en: fv('signoff_en'),
+        signoff_fr: fv('signoff_fr')
+      }
+    }
+  };
+}
+function loadData(d) {
+  if (!d) return;
+  const sv = (id, val) => { const el = document.getElementById(id); if(el && val !== undefined) el.value = val; };
+  sv('name', d.profile?.name); sv('location', d.profile?.location);
+  sv('work_auth', d.profile?.work_auth); sv('target_market', d.profile?.target_market);
+  sv('languages', d.profile?.languages); sv('shipped', d.profile?.shipped);
+  sv('refuse_locations', d.constraints?.refuse_locations);
+  sv('refuse_industries', d.constraints?.refuse_industries);
+  sv('refuse_onsite', d.constraints?.refuse_onsite);
+  sv('refuse_unpaid', d.constraints?.refuse_unpaid);
+  sv('other_dealbreakers', d.constraints?.other);
+  if(d.constraints?.max_yoe) { sv('max_yoe', d.constraints.max_yoe); document.getElementById('max_yoe_val').textContent = d.constraints.max_yoe + '+ yrs → fail'; }
+  sv('salary_fr_floor', d.constraints?.salary?.france_floor);
+  sv('salary_es_floor', d.constraints?.salary?.spain_floor);
+  sv('salary_remote_floor', d.constraints?.salary?.remote_floor);
+  sv('salary_pref_min', d.constraints?.salary?.preferred_min);
+  sv('salary_pref_max', d.constraints?.salary?.preferred_max);
+  sv('north_star', d.career?.north_star); sv('city1', d.career?.preferred_cities?.[0]);
+  sv('city2', d.career?.preferred_cities?.[1]); sv('city3', d.career?.preferred_cities?.[2]);
+  if(d.career?.min_remote_days) { sv('remote_days', d.career.min_remote_days); document.getElementById('remote_days_val').textContent = d.career.min_remote_days + ' days/week'; }
+  sv('cl_formality', d.cover_letter?.formality); sv('cl_energy', d.cover_letter?.energy);
+  sv('cl_style_ref', d.cover_letter?.style_reference);
+  if(d.cover_letter?.max_words) { sv('cl_max_words', d.cover_letter.max_words); document.getElementById('cl_words_val').textContent = d.cover_letter.max_words; }
+  sv('sign_close_en', d.cover_letter?.signature?.closing_en);
+  sv('sign_close_fr', d.cover_letter?.signature?.closing_fr);
+  sv('signoff_en', d.cover_letter?.signature?.signoff_en);
+  sv('signoff_fr', d.cover_letter?.signature?.signoff_fr);
+  const reloadChips = (key, arr, color='') => { chips[key] = (arr||[]).map(t => ({text:t,color})); renderChips(key); };
+  reloadChips('disciplines', d.profile?.disciplines?.map(c=>c.text||c));
+  reloadChips('domains', d.profile?.domains?.map(c=>c.text||c));
+  reloadChips('kw-boost', d.scoring?.kw_boosters, 'green');
+  reloadChips('kw-penalty', d.scoring?.kw_penalties, 'red');
+  reloadChips('sector-a', d.scoring?.sector_a, 'green');
+  reloadChips('sector-b', d.scoring?.sector_b, '');
+  reloadChips('sector-c', d.scoring?.sector_c, 'yellow');
+  reloadChips('sector-d', d.scoring?.sector_d, 'red');
+  reloadChips('culture-boost', d.scoring?.culture_boosters, 'green');
+  reloadChips('culture-penalty', d.scoring?.culture_penalties, 'red');
+  reloadChips('growth-boost', d.scoring?.growth_boosters, 'green');
+  reloadChips('growth-penalty', d.scoring?.growth_penalties, 'red');
+  reloadChips('banned-words', d.cover_letter?.banned_words, 'red');
+  (d.profile?.tools||[]).forEach(t => addTool(t.name, t.level));
+  (d.story_bank||[]).forEach(s => addStory(s));
+}
+
+// ── Export ──
+function refreshExportPreview() {
+  const json = JSON.stringify(getData(), null, 2);
+  document.getElementById('export-preview').textContent = json;
+}
+function exportJSON() {
+  const data = getData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'profile_data.json'; a.click();
+  refreshExportPreview();
+}
+function copyJSON() {
+  const json = JSON.stringify(getData(), null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    document.getElementById('export-preview').textContent = json;
+    const btn = event.target; const orig = btn.textContent;
+    btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+function exportMarkdown() {
+  const d = getData();
+  const lines = [
+    '# Job Scoring Configuration — profile_data.json Export',
+    `Generated: ${new Date().toISOString()}`, '',
+    '## Profile', `- Name: ${d.profile.name}`, `- Location: ${d.profile.location}`,
+    `- Work Auth: ${d.profile.work_auth}`, `- Languages: ${d.profile.languages}`,
+    `- Disciplines: ${d.profile.disciplines.map(c=>c.text||c).join(', ')}`,
+    `- Tools: ${d.profile.tools.map(t=>t.name+' ('+t.level+')').join(', ')}`,
+    '', '## Hard Constraints',
+    `- Refuse locations: ${d.constraints.refuse_locations}`,
+    `- Refuse industries: ${d.constraints.refuse_industries}`,
+    `- Salary floor FR: €${d.constraints.salary.france_floor}k`,
+    `- Salary floor ES: €${d.constraints.salary.spain_floor}k`,
+    `- Preferred range: €${d.constraints.salary.preferred_min}k – €${d.constraints.salary.preferred_max}k`,
+    '', '## Scoring', `- KW Boosters: ${d.scoring.kw_boosters.join(', ')}`,
+    `- KW Penalties: ${d.scoring.kw_penalties.join(', ')}`,
+    `- Sector A: ${d.scoring.sector_a.join(', ')}`,
+    `- Sector B: ${d.scoring.sector_b.join(', ')}`,
+    '', '## Career', `- North Star: ${d.career.north_star}`,
+    `- Preferred Cities: ${d.career.preferred_cities.join(', ')}`,
+    '', '## Story Bank',
+    ...d.story_bank.map((s,i) => `\n### Story ${i+1}: ${s.title}\n${s.text}\nSkills: ${(s.skill_tags||[]).join(', ')}`),
+    '', '## Cover Letter',
+    `- Formality: ${d.cover_letter.formality}`, `- Energy: ${d.cover_letter.energy}`,
+    `- Max words: ${d.cover_letter.max_words}`,
+    `- Banned words: ${d.cover_letter.banned_words.join(', ')}`
+  ];
+  const blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'job_config.md'; a.click();
+}
+function clearAll() {
+  if (!confirm('Clear all data? This cannot be undone.')) return;
+  localStorage.removeItem('jobconfig_v2');
+  location.reload();
+}
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('jobconfig_v2');
+  if (saved) { try { loadData(JSON.parse(saved)); } catch(e) {} }
+  updateProgress();
+});
+</script>
+</body>
+</html>
