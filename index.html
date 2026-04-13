@@ -363,6 +363,9 @@
       <div class="nav-item" data-section="voice" onclick="gotoSection('voice')">
         <span class="dot"></span> Cover Letter Voice
       </div>
+      <div class="nav-item" data-section="searches" onclick="gotoSection('searches')">
+        <span class="dot"></span> Search Queries
+      </div>
       <div class="nav-item" data-section="export" onclick="gotoSection('export')">
         <span class="dot"></span> Export
       </div>
@@ -826,11 +829,45 @@
 
         <div style="display:flex;justify-content:space-between;margin-top:8px">
           <button class="btn btn-ghost" onclick="gotoSection('stories')">← Back</button>
+          <button class="btn btn-primary" onclick="gotoSection('searches')">Next → Search Queries</button>
+        </div>
+      </div>
+
+      <!-- ── 8. SEARCHES ── -->
+      <div class="section" id="section-searches">
+        <div class="section-header">
+          <div class="section-tag">Part 8 — Search Queries</div>
+          <h1>Search Queries</h1>
+          <p>Define what gets scraped each day. Each row is one API call. When you export, these searches are included in the JSON config you paste into n8n — no workflow editing needed.</p>
+        </div>
+
+        <div class="info-box">
+          <strong>How it works:</strong> n8n reads the <code style="font-family:var(--mono);font-size:11px;background:rgba(99,102,241,.15);padding:1px 5px;border-radius:3px">searches</code> array from your exported config JSON. Change queries here, re-export, paste into n8n — done.
+          Sources: <strong>jsearch</strong> = LinkedIn + Indeed (RapidAPI), <strong>wttj</strong> = Welcome to the Jungle, <strong>adzuna</strong> = Adzuna France, <strong>france_travail</strong> = Pôle Emploi (static, always runs).
+        </div>
+
+        <div id="searches-table-wrap">
+          <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto auto auto auto;gap:8px;align-items:center;padding:0 4px 8px;border-bottom:1px solid var(--border);margin-bottom:8px">
+            <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Query</span>
+            <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Location</span>
+            <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Source</span>
+            <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Remote</span>
+            <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Max</span>
+            <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Active</span>
+            <span></span>
+          </div>
+          <div id="searches-rows"></div>
+        </div>
+
+        <button class="add-story-btn" onclick="addSearch()" style="margin-top:12px">+ Add search query</button>
+
+        <div style="display:flex;justify-content:space-between;margin-top:24px">
+          <button class="btn btn-ghost" onclick="gotoSection('voice')">← Back</button>
           <button class="btn btn-primary" onclick="gotoSection('export')">→ Export</button>
         </div>
       </div>
 
-      <!-- ── 8. EXPORT ── -->
+      <!-- ── 9. EXPORT ── -->
       <div class="section" id="section-export">
         <div class="section-header">
           <div class="section-tag">Export</div>
@@ -872,23 +909,35 @@
     <div class="mobile-nav-item" onclick="gotoSection('growth')"><span class="mobile-nav-icon">📍</span>Growth</div>
     <div class="mobile-nav-item" onclick="gotoSection('stories')"><span class="mobile-nav-icon">📖</span>Stories</div>
     <div class="mobile-nav-item" onclick="gotoSection('voice')"><span class="mobile-nav-icon">✍️</span>Voice</div>
+    <div class="mobile-nav-item" onclick="gotoSection('searches')"><span class="mobile-nav-icon">🔍</span>Searches</div>
     <div class="mobile-nav-item" onclick="gotoSection('export')"><span class="mobile-nav-icon">↓</span>Export</div>
   </div>
 </div>
 
 <script>
 // ── State ──
-const SECTIONS = ['identity','constraints','scoring','sectors','growth','stories','voice','export'];
+const SECTIONS = ['identity','constraints','scoring','sectors','growth','stories','voice','searches','export'];
 const SECTION_LABELS = {
   identity:'Identity & Skills', constraints:'Constraints & Salary',
   scoring:'Scoring Keywords', sectors:'Sectors & Culture',
   growth:'Growth & Location', stories:'Story Bank',
-  voice:'Cover Letter Voice', export:'Export'
+  voice:'Cover Letter Voice', searches:'Search Queries', export:'Export'
 };
 let currentSection = 'identity';
 let stories = [];
 let tools = [];
 let chips = {};
+let searches = [];
+
+const SEED_SEARCHES = [
+  { query:'product designer',        location:'Paris, France', source:'jsearch',  remote:false, max_results:20, active:true },
+  { query:'product designer remote', location:'remote',        source:'jsearch',  remote:true,  max_results:20, active:true },
+  { query:'industrial designer',     location:'Paris, France', source:'jsearch',  remote:false, max_results:15, active:true },
+  { query:'designer produit',        location:'Paris',         source:'adzuna',   remote:false, max_results:30, active:true },
+  { query:'product designer',        location:'Paris',         source:'wttj',     remote:false, max_results:30, active:true },
+  { query:'design lead',             location:'Paris',         source:'jsearch',  remote:false, max_results:10, active:true },
+  { query:'head of design',          location:'remote',        source:'jsearch',  remote:true,  max_results:10, active:true },
+];
 
 // ── Navigation ──
 function gotoSection(id) {
@@ -1087,6 +1136,67 @@ function removeStoryChip(idx, field, i) {
   save();
 }
 
+// ── Searches ──
+function addSearch(data) {
+  const row = data || { query:'', location:'', source:'jsearch', remote:false, max_results:20, active:true };
+  const idx = searches.length;
+  searches.push({ ...row });
+  renderSearchRow(idx);
+  save();
+}
+function renderSearchRow(idx) {
+  const s = searches[idx];
+  const container = document.getElementById('searches-rows');
+  let row = document.getElementById(`search-row-${idx}`);
+  if (!row) {
+    row = document.createElement('div');
+    row.id = `search-row-${idx}`;
+    container.appendChild(row);
+  }
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1.5fr 1fr auto auto auto auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--border)';
+  row.innerHTML = `
+    <input type="text" value="${escHtml(s.query)}" placeholder="e.g. product designer"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:13px;padding:6px 9px;outline:none;width:100%"
+      oninput="searches[${idx}].query=this.value;save()" onfocus="this.style.borderColor='var(--border-focus)'" onblur="this.style.borderColor='var(--border)'">
+    <input type="text" value="${escHtml(s.location)}" placeholder="Paris, France"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:13px;padding:6px 9px;outline:none;width:100%"
+      oninput="searches[${idx}].location=this.value;save()" onfocus="this.style.borderColor='var(--border-focus)'" onblur="this.style.borderColor='var(--border)'">
+    <select style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:13px;padding:6px 9px;outline:none;width:100%;cursor:pointer"
+      onchange="searches[${idx}].source=this.value;save()">
+      <option value="jsearch" ${s.source==='jsearch'?'selected':''}>jsearch</option>
+      <option value="wttj" ${s.source==='wttj'?'selected':''}>wttj</option>
+      <option value="adzuna" ${s.source==='adzuna'?'selected':''}>adzuna</option>
+      <option value="france_travail" ${s.source==='france_travail'?'selected':''}>france_travail</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;font-size:12px;color:var(--muted)">
+      <input type="checkbox" ${s.remote?'checked':''} onchange="searches[${idx}].remote=this.checked;save()" style="accent-color:var(--accent)">
+      Remote
+    </label>
+    <input type="number" value="${s.max_results}" min="5" max="50" step="5"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);font-size:13px;padding:6px 9px;outline:none;width:58px;text-align:center"
+      oninput="searches[${idx}].max_results=parseInt(this.value)||20;save()" onfocus="this.style.borderColor='var(--border-focus)'" onblur="this.style.borderColor='var(--border)'">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;font-size:12px;color:var(--muted)">
+      <input type="checkbox" ${s.active?'checked':''} onchange="searches[${idx}].active=this.checked;save()" style="accent-color:var(--accent)">
+      On
+    </label>
+    <span style="cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:0 4px" onclick="removeSearch(${idx})" title="Remove">×</span>`;
+}
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function removeSearch(idx) {
+  searches.splice(idx, 1);
+  document.getElementById('searches-rows').innerHTML = '';
+  const temp = [...searches]; searches = [];
+  temp.forEach(s => addSearch(s));
+  save();
+}
+function renderAllSearchRows() {
+  document.getElementById('searches-rows').innerHTML = '';
+  const temp = [...searches]; searches = [];
+  temp.forEach(s => addSearch(s));
+}
+
 // ── Progress ──
 function updateProgress() {
   const fields = ['name','location','work_auth','target_market','languages',
@@ -1154,6 +1264,14 @@ function getData() {
       min_remote_days: fv('remote_days')
     },
     story_bank: stories,
+    searches: searches.map(s => ({
+      query: s.query,
+      location: s.location,
+      source: s.source,
+      remote: !!s.remote,
+      max_results: parseInt(s.max_results) || 20,
+      active: !!s.active
+    })),
     cover_letter: {
       formality: fv('cl_formality'),
       energy: fv('cl_energy'),
@@ -1212,6 +1330,11 @@ function loadData(d) {
   reloadChips('banned-words', d.cover_letter?.banned_words, 'red');
   (d.profile?.tools||[]).forEach(t => addTool(t.name, t.level));
   (d.story_bank||[]).forEach(s => addStory(s));
+  if ((d.searches||[]).length > 0) {
+    searches = [];
+    document.getElementById('searches-rows').innerHTML = '';
+    d.searches.forEach(s => addSearch(s));
+  }
 }
 
 // ── Export ──
@@ -1275,7 +1398,19 @@ function clearAll() {
 // ── Init ──
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('jobconfig_v2');
-  if (saved) { try { loadData(JSON.parse(saved)); } catch(e) {} }
+  if (saved) {
+    try {
+      const d = JSON.parse(saved);
+      loadData(d);
+      // Seed searches if saved data has none (migration from old saves)
+      if (!(d.searches && d.searches.length > 0)) {
+        SEED_SEARCHES.forEach(s => addSearch(s));
+      }
+    } catch(e) {}
+  } else {
+    // First load — seed searches
+    SEED_SEARCHES.forEach(s => addSearch(s));
+  }
   updateProgress();
 });
 </script>
