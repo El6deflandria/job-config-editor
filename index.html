@@ -2296,7 +2296,7 @@ async function generateLetter() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: maxTok, temperature: 0.85 }
+          generationConfig: { temperature: 0.85 }
         })
       }
     );
