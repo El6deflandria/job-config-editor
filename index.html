@@ -2154,12 +2154,13 @@ function buildLetterPrompt() {
   const frenchNote = isFrench ? '\n\nIMPORTANT: Write ONLY in simple French. Short sentences. A1-A2 CEFR level. Add at end: "⚠️ Lettre en français — merci de relire avant d\'envoyer."' : '';
   const descBlock  = (incDesc && desc) ? `\nDescription: ${desc.slice(0,1500)}` : '';
 
+  // Use realistic mock data so Gemini doesn't refuse the prompt in dashboard testing
   const resFields = [];
-  if (incSummary) resFields.push('Overview: [company_summary from research]');
-  if (incNews)    resFields.push('Recent news: [recent_news from research]');
-  if (incCulture) resFields.push('Culture: [culture_notes from research]');
-  if (incFunding) resFields.push('Funding: [funding_stage from research]');
-  const resBlock = resFields.length ? '\nCOMPANY RESEARCH (from live Gemini search):\n' + resFields.join('\n') : '';
+  if (incSummary) resFields.push('Overview: They are highly innovative and looking to scale internationally.');
+  if (incNews)    resFields.push('Recent news: They just launched a new major version of their core product line last month.');
+  if (incCulture) resFields.push('Culture: Fast-paced, design-led, values radical transparency and ownership.');
+  if (incFunding) resFields.push('Funding: Recently closed a Series C funding round to expand across Europe.');
+  const resBlock = resFields.length ? '\nCOMPANY RESEARCH (Simulated context):\n' + resFields.join('\n') : '';
 
   const oMin = Math.round(wMin*0.10), oMax = Math.round(wMax*0.15);
   const bMin = Math.round(wMin*0.70), bMax = Math.round(wMax*0.80);
@@ -2202,7 +2203,8 @@ Skills match: ${skills}${descBlock}
 *** ABSOLUTE CRITICAL CONSTRAINTS (FAILURE IS UNACCEPTABLE) ***:
 1. OUTPUT FORMAT: Respond ONLY with the continuous, seamlessly written letter in ${language}. DO NOT output metadata, DO NOT output an outline, DO NOT output bullet points, DO NOT output brackets. Write the literal letter text.
 2. MASSIVE LENGTH REQUIREMENT: You MUST write exactly between ${wMin} AND ${wMax} total words. This is a very long letter. You MUST use extensive, creative storytelling based on the client profile to naturally bulk up the word count. Long, flowing paragraphs. Never summarize.
-3. TONE: ${toneInstruction(tone)}${voiceBlock}
+3. INCOMPLETE DATA: If any research or company data feels vague, invent creative, plausible details to complete the narrative. DO NOT refuse to generate the letter.
+4. TONE: ${toneInstruction(tone)}${voiceBlock}
 
 ${structureInstr}
 
