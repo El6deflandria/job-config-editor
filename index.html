@@ -2079,25 +2079,25 @@ function toneInstruction(v) {
 
 function openingInstruction(style) {
   return {
-    hook: 'Opening: Start with a specific, researched hook referencing something real about the company (a product, recent news, or mission). Avoid generic openers.',
-    bold: 'Opening: Start with a bold, confident statement about what Ramiro brings — not about the company. Make it memorable.',
-    question: 'Opening: Start with a brief rhetorical question that frames the problem this company is solving, then pivot to why Ramiro is the answer.'
+    hook: 'Start with a specific, researched hook referencing something real about the company (a product, recent news, or mission). Avoid generic openers.',
+    bold: 'Start with a bold, confident statement about what Ramiro brings — not about the company. Make it memorable.',
+    question: 'Start with a brief rhetorical question that frames the problem this company is solving, then pivot to why Ramiro is the answer.'
   }[style] || '';
 }
 
 function achieveInstruction(style) {
   return {
-    numbers: 'Body: Lead with concrete metrics and numbers (330K followers, +40% revenue, 50+ partners, margins 45%→58%, delivery 70%→95%). Let the numbers tell the story.',
-    story:   'Body: Use narrative — describe a challenge Ramiro faced at Cogonauts, the action taken, and the outcome. Numbers support the story, not the other way around.',
-    mixed:   'Body: Mix narrative context with hard metrics. Set up a situation briefly, then anchor with a specific number or result.'
+    numbers: 'Lead with concrete metrics and numbers (330K followers, +40% revenue, 50+ partners, margins 45%→58%, delivery 70%→95%). Let the numbers tell the story.',
+    story:   'Use narrative — describe a challenge Ramiro faced at Cogonauts, the action taken, and the outcome. Numbers support the story, not the other way around.',
+    mixed:   'Mix narrative context with hard metrics. Set up a situation briefly, then anchor with a specific number or result.'
   }[style] || '';
 }
 
 function closingInstruction(style) {
   return {
-    direct: 'Closing: Make a direct, confident ask for an interview. Paris availability end of May 2026. Short and assertive.',
-    soft:   'Closing: Express genuine interest and note Paris availability end of May 2026. Invite a conversation without being demanding.',
-    noask:  'Closing: Simply express why this role fits Ramiro\'s trajectory and note Paris availability. No explicit call-to-action.'
+    direct: 'Make a direct, confident ask for an interview. Note Paris availability end of May 2026. Short and assertive.',
+    soft:   'Express genuine interest and note Paris availability end of May 2026. Invite a conversation without being demanding.',
+    noask:  'Simply express why this role fits Ramiro\'s trajectory and note Paris availability. No explicit call-to-action.'
   }[style] || '';
 }
 
@@ -2178,14 +2178,14 @@ function buildLetterPrompt() {
 
   const structureInstr = structure === 'strict'
     ? `FLOW AND PACING:
-- First, ${hookInstr}
-- Next, weave a highly detailed Pitch: ${achieveInstruction(achieve)} Expand significantly to reach exactly ${bMin}–${bMax} words.
-- Then, dedicate a full paragraph explaining Fit: Why THIS role at THIS company specifically. Be incredibly precise and detailed.
-- Finally, ${closingInstruction(closing)} (${cMin}+ words)`
+Paragraph 1 (The Hook, exactly ${oMin} to ${oMax} words): ${hookInstr}
+Paragraph 2 (The Pitch, exactly ${bMin} to ${bMax} words): ${achieveInstruction(achieve)} Expand significantly to reach exactly the target word count.
+Paragraph 3 (The Fit, extensive detail): Dedicate a full, deep paragraph explaining why THIS role at THIS company specifically fits. Be incredibly precise and highly detailed.
+Paragraph 4 (The Close, exactly ${cMin} to ${cMax} words): ${closingInstruction(closing)}`
     : `FLOW AND PACING:
-- First, ${hookInstr}
-- Next, weave a highly detailed Body: ${achieveInstruction(achieve)} Expand significantly to reach exactly ${bMin}–${bMax} words.
-- Finally, ${closingInstruction(closing)} (${cMin}+ words)`;
+Paragraph 1 (The Hook, exactly ${oMin} to ${oMax} words): ${hookInstr}
+Paragraph 2 (The Body, exactly ${bMin} to ${bMax} words): ${achieveInstruction(achieve)} Expand significantly to reach exactly the target word count.
+Paragraph 3 (The Close, exactly ${cMin} to ${cMax} words): ${closingInstruction(closing)}`;
 
   return `You are an elite, highly-paid executive ghostwriter. You have been hired to write a DRAFT COPY of a full-length cover letter for a client to immediately send.
 
