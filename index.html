@@ -2187,7 +2187,7 @@ Paragraph 1 (The Hook, exactly ${oMin} to ${oMax} words): ${hookInstr}
 Paragraph 2 (The Body, exactly ${bMin} to ${bMax} words): ${achieveInstruction(achieve)} Expand significantly to reach exactly the target word count.
 Paragraph 3 (The Close, exactly ${cMin} to ${cMax} words): ${closingInstruction(closing)}`;
 
-  return `You are an elite, highly-paid executive ghostwriter. You have been hired to write a DRAFT COPY of a full-length cover letter for a client to immediately send.
+  return `You are an expert career coach and professional executive copywriter assisting a candidate. Your task is to write a highly detailed, extremely thorough draft of a full-length cover letter for the candidate.
 
 CLIENT PROFILE${useProfile ? ' [← from Setup]' : ''}:
 ${getProfileSection(useProfile)}
@@ -2200,9 +2200,9 @@ Score: ${score}/100
 Role type: ${role}
 Skills match: ${skills}${descBlock}
 
-*** ABSOLUTE CRITICAL CONSTRAINTS (FAILURE IS UNACCEPTABLE) ***:
+*** VERY IMPORTANT INSTRUCTIONS ***:
 1. OUTPUT FORMAT: Respond ONLY with the continuous, seamlessly written letter in ${language}. DO NOT output metadata, DO NOT output an outline, DO NOT output bullet points, DO NOT output brackets. Write the literal letter text.
-2. MASSIVE LENGTH REQUIREMENT: You MUST write exactly between ${wMin} AND ${wMax} total words. This is a very long letter. You MUST use extensive, creative storytelling based on the client profile to naturally bulk up the word count. Long, flowing paragraphs. Never summarize.
+2. LENGTH REQUIREMENT: You MUST write exactly between ${wMin} AND ${wMax} total words. This is a very long, comprehensive letter. You MUST use extensive, creative storytelling based on the client profile to naturally bulk up the word count. Long, flowing paragraphs. Never summarize.
 3. INCOMPLETE DATA: If any research or company data feels vague, invent creative, plausible details to complete the narrative. DO NOT refuse to generate the letter.
 4. TONE: ${toneInstruction(tone)}${voiceBlock}
 
@@ -2305,13 +2305,17 @@ async function generateLetter() {
       throw new Error(err?.error?.message || `HTTP ${resp.status}`);
     }
     const data = await resp.json();
-    const letter = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cand = data?.candidates?.[0];
+    const letter = cand?.content?.parts?.[0]?.text || '';
     if (!letter) throw new Error('Empty response from Gemini');
     S.letter.letter = letter;
     const wc = letter.trim().split(/\s+/).length;
     g('l-wc').textContent  = `${wc} words`;
     g('l-letter').textContent = letter;
-    g('l-gen-status').textContent = `Done · ${wc} words · Gemini 2.5 Flash`;
+    
+    // Telemetry display
+    const finish = cand?.finishReason || 'UNKNOWN';
+    g('l-gen-status').textContent = `Done · ${wc} words · Reason: ${finish} · MaxTok: ${maxTok}`;
     ['good','bad'].forEach(r => g(`l-r-${r}`).classList.remove('active'));
   } catch(e) {
     g('l-gen-status').textContent = '❌ Error: ' + e.message;
