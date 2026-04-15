@@ -1413,6 +1413,7 @@
                 <button class="rating-btn" id="l-r-note" onclick="toggleNote()" title="Add note">✏️</button>
               </div>
               <div class="letter-actions">
+                <button class="btn-small btn-secondary" onclick="clearLetter()" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border);">🗑️ Clear</button>
                 <button class="btn-small" onclick="copyLetter()">📋 Copy</button>
               </div>
             </div>
@@ -2350,6 +2351,13 @@ function copyPrompt(elId) {
 function copyLetter() {
   const text = S.letter.letter || g('l-letter').textContent;
   navigator.clipboard.writeText(text).then(() => showToast('Letter copied!'));
+}
+function clearLetter() {
+  S.letter.letter = '';
+  g('l-letter').innerHTML = '<span class="letter-placeholder">Letter will appear here after generation...</span>';
+  g('l-wc').textContent = '— words';
+  g('l-gen-status').textContent = '';
+  ['good','bad'].forEach(r => g(`l-r-${r}`).classList.remove('active'));
 }
 function getConfig() {
   const { min: wMin, max: wMax } = getWordRange();
